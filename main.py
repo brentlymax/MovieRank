@@ -10,7 +10,12 @@ def main():
 	output_path = "C:/Programming/Workspace/Python/MovieRank/data/output/"
 
 	movie_rank = MovieRank(movies_path, reviews_path, output_path)
-	movie_rank.rdd_job()
+	#movie_rank.rdd_num_reviews()
+	#movie_rank.rdd_avg_reviews()
+	#movie_rank.dataframe_num_reviews()
+	#movie_rank.dataframe_avg_reviews()
+	#movie_rank.dataset_num_reviews()
+	#movie_rank.dataset_avg_reviews()
 
 
 if __name__ == "__main__":
