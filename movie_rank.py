@@ -61,7 +61,9 @@ class MovieRank:
 		# Join RDDs.
 		res_rdd = reviews_rdd.join(reviews_rdd_with_ratings_sum) \
 		.mapValues(lambda x: x[1] / x[0]) \
-		.filter(lambda x: x[1]>4 )
+		.filter(lambda x: x[1]>4 ) \
+		.sortBy(lambda x: -x[1])
+		
 		res_rdd = res_rdd.join(movies_rdd).map(lambda x: x[1][1])
 		res_rdd.coalesce(1).saveAsTextFile(self.output_path)
 		
