@@ -10,12 +10,13 @@ class MovieRank:
 	# Constructor.
 	def __init__(self, movies_path, reviews_path, output_path):
 		# Create SparkContext object.
-		conf = SparkConf().setMaster("local").setAppName("Movie Rank")
+		conf = SparkConf().setMaster("local[8]").setAppName("Movie Rank").set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
 		self.sc = SparkContext.getOrCreate(conf=conf)
 		# Check and set path variables.
 		self.movies_path = movies_path
 		self.reviews_path = reviews_path
 		self.output_path = output_path
+
 
 	# Spark job using RDD to find the 10 movies with highest number of reviews.
 	def rdd_num_reviews(self):
@@ -46,25 +47,19 @@ class MovieRank:
 
 		reviews_rdd = self.sc.textFile(self.reviews_path) \
 		.filter(lambda row:row != 'userId,movieId,rating,timestamp') \
-		.map(lambda row : (row.split(",")[1], 1)) \
-		.reduceByKey(lambda a, b : a + b) \
-		.filter(lambda a: a[1] >= 10)
+		.map(lambda row : [row.split(",")[1], (1, float(row.split(",")[2]))]) \
+		.reduceByKey(lambda x, y: (x[0]+y[0], x[1]+y[1])) \
+		.filter(lambda x: x[1][0]>10 ) \
+		.mapValues(lambda x:  x[1]/x[0]) \
+		.filter(lambda x: x[1]>4)
+		
 
-		reviews_rdd_with_ratings_sum = self.sc.textFile(self.reviews_path) \
-		.filter(lambda row:row != 'userId,movieId,rating,timestamp') \
-		.map(lambda row : (row.split(",")[1] , float(row.split(",")[2]))) \
-		.reduceByKey(lambda a,b: a+b)
 		# Check if output directory exists, if so delete.
-		if os.path.exists(self.output_path) and os.path.isdir(self.output_path):
+		if os.path.exists(self.output_path) and os.path.isdir(self.output_path): 
 			shutil.rmtree(self.output_path)
 
 		# Join RDDs.
-		res_rdd = reviews_rdd.join(reviews_rdd_with_ratings_sum) \
-		.mapValues(lambda x: x[1] / x[0]) \
-		.filter(lambda x: x[1]>4 ) \
-		.sortBy(lambda x: -x[1])
-		
-		res_rdd = res_rdd.join(movies_rdd).map(lambda x: x[1][1])
+		res_rdd = reviews_rdd.join(movies_rdd).map(lambda x: [x[1][1], x[1][0]])
 		res_rdd.coalesce(1).saveAsTextFile(self.output_path)
 		
 
