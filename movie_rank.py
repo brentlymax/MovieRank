@@ -17,7 +17,6 @@ class MovieRank:
 		self.reviews_path = reviews_path
 		self.output_path = output_path
 
-
 	# Spark job using RDD to find the 10 movies with highest number of reviews.
 	def rdd_num_reviews(self):
 		# Create and filter RDDs.
@@ -35,33 +34,28 @@ class MovieRank:
 		# Join RDDs.
 		reviews_rdd_para = self.sc.parallelize(reviews_rdd)
 		res_rdd = reviews_rdd_para.join(movies_rdd).map(lambda x: x[1])
+		# Write output to CSV or display to console.
 		res_rdd.coalesce(1).saveAsTextFile(self.output_path)
+		# res_rdd.show()
 
 	# Spark job using RDD to find average reviews over 4 stars.
 	def rdd_avg_reviews(self):
-
 		# Create and filter RDDs.
 		movies_rdd = self.sc.textFile(self.movies_path) \
-		.filter(lambda row:row != 'movieId,title,genres') \
-		.map(lambda row : ( row.split(",")[0], row.split(",")[1]) ) 
-
+			.filter(lambda row:row != 'movieId,title,genres') \
+			.map(lambda row : ( row.split(",")[0], row.split(",")[1]))
 		reviews_rdd = self.sc.textFile(self.reviews_path) \
-		.filter(lambda row:row != 'userId,movieId,rating,timestamp') \
-		.map(lambda row : [row.split(",")[1], (1, float(row.split(",")[2]))]) \
-		.reduceByKey(lambda x, y: (x[0]+y[0], x[1]+y[1])) \
-		.filter(lambda x: x[1][0]>10 ) \
-		.mapValues(lambda x:  x[1]/x[0]) \
-		.filter(lambda x: x[1]>4)
-		
-
-		# Check if output directory exists, if so delete.
-		if os.path.exists(self.output_path) and os.path.isdir(self.output_path): 
-			shutil.rmtree(self.output_path)
-
+			.filter(lambda row:row != 'userId,movieId,rating,timestamp') \
+			.map(lambda row : [row.split(",")[1], (1, float(row.split(",")[2]))]) \
+			.reduceByKey(lambda x, y: (x[0]+y[0], x[1]+y[1])) \
+			.filter(lambda x: x[1][0]>10 ) \
+			.mapValues(lambda x:  x[1]/x[0]) \
+			.filter(lambda x: x[1]>4)
 		# Join RDDs.
 		res_rdd = reviews_rdd.join(movies_rdd).map(lambda x: [x[1][1], x[1][0]])
+		# Write output to CSV or display to console.
 		res_rdd.coalesce(1).saveAsTextFile(self.output_path)
-		
+		# res_rdd.show()
 
 	# Spark job using DataFrame to find the 10 movies with highest number of reviews.
 	def dataframe_num_reviews(self):
@@ -79,7 +73,7 @@ class MovieRank:
 		res_df = reviews_df.join(movies_df, reviews_df.movieId == movies_df.movieId) \
 			.select(func.col("num_ratings"), func.col("title"))
 		# Write output to CSV or display to console.
-		res_df.coalesce(1).write.format("csv").save("C:/Programming/Workspace/Python/MovieRank/output")
+		res_df.coalesce(1).write.format("csv").save(self.output_path)
 		# res_df.show()
 
 	# Spark job using DataFrame to find average reviews over 4 stars.
@@ -105,7 +99,7 @@ class MovieRank:
 		res_df = reviews_final_df.join(movies_df, reviews_final_df.movieId == movies_df.movieId) \
 			.select(func.col("avg_ratings"), func.col("title"))
 		# Write output to CSV or display to console.
-		res_df.coalesce(1).write.format("csv").save("C:/Programming/Workspace/Python/MovieRank/output")
+		res_df.coalesce(1).write.format("csv").save(self.output_path)
 		# res_df.show()
 
 
