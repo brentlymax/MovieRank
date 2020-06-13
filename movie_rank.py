@@ -47,15 +47,17 @@ class MovieRank:
 		# Create and filter DataFrames.
 		movies_df = sql_context.read.option("header", "true").csv(self.movies_path)
 		reviews_df = sql_context.read.option("header", "true").csv(self.reviews_path) \
-			.groupBy('movieId') \
+			.groupBy("movieId") \
 			.agg(func.count('rating')) \
 			.select(func.col("movieId").alias("movieId"), func.col("count(rating)").alias("num_ratings")) \
-			.sort(func.desc('num_ratings')) \
+			.sort(func.desc("num_ratings")) \
 			.limit(10)
 		# Join DataFrames.
 		res_df = reviews_df.join(movies_df, reviews_df.movieId == movies_df.movieId) \
-			.select(func.col('num_ratings'), func.col('title'))
-		res_df.show()
+			.select(func.col("num_ratings"), func.col("title"))
+		# Write output to CSV or display to console.
+		res_df.coalesce(1).write.format("csv").save("C:/Programming/Workspace/Python/MovieRank/output")
+		# res_df.show()
 
 	# Spark job using DataFrame to find average reviews over 4 stars.
 	def dataframe_avg_reviews(self):
@@ -63,26 +65,25 @@ class MovieRank:
 		sql_context = SQLContext(self.sc)
 		# Create and filter DataFrames.
 		movies_df = sql_context.read.option("header", "true").csv(self.movies_path)
-		reviews_df = sql_context.read.option("header", "true").csv(self.reviews_path) \
-			.groupBy('movieId') \
-			.agg(func.avg('rating')) \
-			.select(func.col("movieId").alias("movieId"), func.col("avg(rating)").alias("avg_ratings")) \
-			.sort(func.desc('avg_ratings')) \
-			.limit(10)
-		# Join DataFrames.
-		res_df = reviews_df.join(movies_df, reviews_df.movieId == movies_df.movieId) \
-			.select(func.col('avg_ratings'), func.col('title'))
-		res_df.show()
-
-	# Spark job using DataSet to find the 10 movies with highest number of reviews.
-	def dataset_num_reviews(self, movies_path, reviews_path):
-		pass
-
-	# Spark job using DataSet to find average reviews over 4 stars.
-	def dataset_avg_reviews(self):
-		pass
-
-
+		reviews_avg_df = sql_context.read.option("header", "true").csv(self.reviews_path) \
+			.groupBy("movieId") \
+			.agg(func.avg("rating")) \
+			.select(func.col("movieId").alias("movieId_avg"), func.col("avg(rating)").alias("avg_ratings")) \
+			.filter(func.col("avg_ratings") >= 4)
+		reviews_num_df = sql_context.read.option("header", "true").csv(self.reviews_path) \
+			.groupBy("movieId") \
+			.agg(func.count("rating")) \
+			.select(func.col("movieId").alias("movieId_num"), func.col("count(rating)").alias("num_ratings")) \
+			.filter(func.col("num_ratings") >= 10)
+		# Join both review DataFrames.
+		reviews_final_df = reviews_avg_df.join(reviews_num_df, reviews_avg_df.movieId_avg == reviews_num_df.movieId_num) \
+			.select(func.col("movieId_avg").alias("movieId"), func.col("avg_ratings"))
+		# Join movie and final review DataFrames.
+		res_df = reviews_final_df.join(movies_df, reviews_final_df.movieId == movies_df.movieId) \
+			.select(func.col("avg_ratings"), func.col("title"))
+		# Write output to CSV or display to console.
+		res_df.coalesce(1).write.format("csv").save("C:/Programming/Workspace/Python/MovieRank/output")
+		# res_df.show()
 
 
 # Driver code for testing class.
